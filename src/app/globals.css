@@ -1481,6 +1481,10 @@ a {
   }
 }
 
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 @keyframes pulseOm {
   0%, 100% {
     transform: scale(0.92);

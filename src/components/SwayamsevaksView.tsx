@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import { Search, Download, Plus, Edit2, Trash2 } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { Search, Download, Plus, Edit2, Trash2, Upload } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface Swayamsevak {
   id: string;
@@ -15,11 +14,13 @@ interface Swayamsevak {
   status: "active" | "inactive" | "touring";
   role: string;
   dakshina: number;
+  age?: number;
 }
 
 interface SwayamsevaksViewProps {
   swayamsevaks: Swayamsevak[];
   onAddClick: () => void;
+  onImportClick: () => void;
   onEditClick: (member: Swayamsevak) => void;
   onDeleteClick: (id: string) => void;
   searchQuery: string;
@@ -35,6 +36,7 @@ interface SwayamsevaksViewProps {
 export default function SwayamsevaksView({
   swayamsevaks,
   onAddClick,
+  onImportClick,
   onEditClick,
   onDeleteClick,
   searchQuery,
@@ -59,99 +61,48 @@ export default function SwayamsevaksView({
     return matchesSearch && matchesStatus && matchesShakha;
   });
 
-  const exportToPDF = () => {
+  const exportToExcel = () => {
     if (triggerLoader) {
-      triggerLoader(true, "Generating PDF Document...");
+      triggerLoader(true, "Generating Excel Spreadsheet...");
     }
 
     setTimeout(() => {
       try {
-        const doc = new jsPDF({
-          orientation: "landscape",
-          unit: "mm",
-          format: "a4"
-        });
+        const dataToExport = filtered.map((m) => ({
+          "ID": m.id,
+          "Full Name": m.name,
+          "Age": m.age || "N/A",
+          "Phone": m.phone,
+          "Email": m.email || "N/A",
+          "Shakha Unit": m.shakha,
+          "Role": m.role,
+          "Status": m.status.toUpperCase(),
+          "Joining Date": m.joiningDate
+        }));
 
-        // 1. Title / Header
-        doc.setFont("Helvetica", "bold");
-        doc.setFontSize(20);
-        doc.setTextColor(242, 109, 33); // Saffron brand color
-        doc.text("Rashtriya Swayamsevak Sangh, Thiruvangoor", 14, 18);
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
 
-        // Subtitle
-        doc.setFont("Helvetica", "normal");
-        doc.setFontSize(12);
-        doc.setTextColor(100, 116, 139); // Gray slate
-        doc.text("Swayamsevaks List", 14, 25);
+        const columnWidths = [
+          { wch: 12 },
+          { wch: 25 },
+          { wch: 8 },
+          { wch: 15 },
+          { wch: 25 },
+          { wch: 20 },
+          { wch: 18 },
+          { wch: 12 },
+          { wch: 15 }
+        ];
+        worksheet["!cols"] = columnWidths;
 
-        // Metainfo
-        const dateStr = new Date().toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit"
-        });
-        doc.setFontSize(10);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Generated: ${dateStr}  |  Total Members: ${filtered.length}`, 14, 32);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Swayamsevaks");
+        XLSX.writeFile(workbook, `RSS_Thiruvangoor_Swayamsevaks_${new Date().toISOString().slice(0, 10)}.xlsx`);
 
-        // Divider line
-        doc.setDrawColor(242, 109, 33);
-        doc.setLineWidth(0.5);
-        doc.line(14, 35, 283, 35); // Landscape width A4 is 297mm (margins 14mm)
-
-        // 2. Data rows prep
-        const headers = [["ID", "Full Name", "Phone", "Email", "Shakha Unit", "Joining Date", "Role", "Status"]];
-        const body = filtered.map((m) => [
-          m.id,
-          m.name,
-          m.phone,
-          m.email || "N/A",
-          m.shakha,
-          m.joiningDate,
-          m.role,
-          m.status.toUpperCase()
-        ]);
-
-        // 3. AutoTable rendering
-        autoTable(doc, {
-          startY: 40,
-          head: headers,
-          body: body,
-          theme: "striped",
-          headStyles: {
-            fillColor: [242, 109, 33], // Saffron header
-            textColor: [255, 255, 255],
-            fontSize: 10,
-            fontStyle: "bold"
-          },
-          bodyStyles: {
-            fontSize: 9,
-            textColor: [33, 43, 54]
-          },
-          alternateRowStyles: {
-            fillColor: [248, 250, 252] // Light slate
-          },
-          columnStyles: {
-            0: { cellWidth: 24 }, // ID
-            1: { cellWidth: 45 }, // Name
-            2: { cellWidth: 28 }, // Phone
-            3: { cellWidth: 50 }, // Email
-            4: { cellWidth: 38 }, // Shakha
-            5: { cellWidth: 28 }, // Date
-            6: { cellWidth: 30 }, // Role
-            7: { cellWidth: 26 }  // Status
-          },
-          margin: { left: 14, right: 14 }
-        });
-
-        // 4. Save file
-        doc.save(`RSS_Thiruvangoor_Swayamsevaks_${new Date().toISOString().slice(0, 10)}.pdf`);
-        showToast("PDF report exported successfully!", "success");
+        showToast("Excel spreadsheet exported successfully!", "success");
       } catch (error: any) {
-        console.error("PDF Export error:", error);
-        showToast(`Failed to export PDF: ${error.message || error}`, "error");
+        console.error("Excel Export error:", error);
+        showToast(`Failed to export Excel: ${error.message || error}`, "error");
       } finally {
         if (triggerLoader) {
           triggerLoader(false, "");
@@ -171,9 +122,16 @@ export default function SwayamsevaksView({
           <div style={{ display: "flex", gap: "12px" }}>
             <button
               className="btn-secondary"
-              onClick={exportToPDF}
+              onClick={exportToExcel}
             >
-              <Download size={16} /> Export PDF
+              <Download size={16} /> Export Excel
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={onImportClick}
+              style={{ display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              <Upload size={16} /> Import Excel
             </button>
             <button className="btn-primary saffron" onClick={onAddClick}>
               <Plus size={16} /> Add Swayamsevak
@@ -260,7 +218,7 @@ export default function SwayamsevaksView({
                             {member.name}
                           </h4>
                           <p>
-                            ID: {member.id} • {member.phone}
+                            ID: {member.id} • {member.phone}{member.age !== undefined && member.age !== null ? ` • Age: ${member.age}` : ""}
                           </p>
                         </div>
                       </div>

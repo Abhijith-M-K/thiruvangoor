@@ -16,6 +16,7 @@ interface MemberModalProps {
     joiningDate: string;
     status: "active" | "inactive" | "touring";
     role: string;
+    age?: number | string;
   };
   setFormData: (data: any) => void;
   submitLabel: string;
@@ -82,16 +83,33 @@ export default function MemberModal({
 
             <div className="form-row">
               <div className="form-group">
-                <label>Shakha Unit</label>
-                <select
+                <label>Age</label>
+                <input
+                  type="number"
                   className="form-control"
-                  value={formData.shakha}
-                  onChange={(e) => setFormData({ ...formData, shakha: e.target.value })}
-                >
-                  <option value="Bal Shakha">Bal Shakha</option>
-                  <option value="Tarun Shakha">Tarun Shakha</option>
-                  <option value="Pravaudh Shakha">Pravaudh Shakha</option>
-                </select>
+                  placeholder="e.g. 25"
+                  value={formData.age === undefined ? "" : formData.age}
+                  onChange={(e) => {
+                    const ageVal = e.target.value;
+                    const parsedAge = ageVal ? parseInt(ageVal, 10) : 0;
+                    let calculatedShakha = "Pravaudh Shakha";
+                    if (parsedAge >= 6 && parsedAge <= 12) {
+                      calculatedShakha = "Bal Shakha";
+                    } else if (parsedAge >= 13 && parsedAge <= 18) {
+                      calculatedShakha = "Tarun Shakha";
+                    } else {
+                      calculatedShakha = "Pravaudh Shakha";
+                    }
+                    setFormData({
+                      ...formData,
+                      age: ageVal === "" ? "" : parsedAge,
+                      shakha: calculatedShakha
+                    });
+                  }}
+                  min="1"
+                  max="120"
+                  required
+                />
               </div>
               <div className="form-group">
                 <label>Responsibility/Role</label>
@@ -110,22 +128,35 @@ export default function MemberModal({
               </div>
             </div>
 
-            <div className="form-group">
-              <label>Status</label>
-              <select
-                className="form-control"
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    status: e.target.value as "active" | "inactive" | "touring"
-                  })
-                }
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="touring">Pravas / Touring</option>
-              </select>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Status</label>
+                <select
+                  className="form-control"
+                  value={formData.status}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      status: e.target.value as "active" | "inactive" | "touring"
+                    })
+                  }
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="touring">Pravas / Touring</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Assigned Shakha Unit</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.shakha || "Pravaudh Shakha"}
+                  readOnly
+                  disabled
+                  style={{ opacity: 0.8, cursor: "not-allowed", fontWeight: 500 }}
+                />
+              </div>
             </div>
           </div>
 

@@ -10,6 +10,10 @@ import DakshinaView from "@/components/DakshinaView";
 import ShakhasView from "@/components/ShakhasView";
 import GenericPlaceholderView from "@/components/GenericPlaceholderView";
 import MemberModal from "@/components/MemberModal";
+import ImportModal from "@/components/ImportModal";
+import DakshinaImportModal from "@/components/DakshinaImportModal";
+import ScheduleView from "@/components/ScheduleView";
+import ReportsView from "@/components/ReportsView";
 
 // Swayamsevak Type Definition
 interface Swayamsevak {
@@ -22,6 +26,7 @@ interface Swayamsevak {
   status: "active" | "inactive" | "touring";
   role: string;
   dakshina: number;
+  age?: number;
 }
 
 interface Contribution {
@@ -41,6 +46,28 @@ interface Shakha {
   location: string;
   mukhyaShikshak: string;
   attendance: number;
+}
+
+interface ShakhaAttendanceLog {
+  id: string;
+  shakhaId: string;
+  logDate: string;
+  presentCount: number;
+  absentCount: number;
+  absentReasonCount: number;
+  remarks: string;
+  shakhaName: string;
+}
+
+interface EventItem {
+  id: string;
+  name: string;
+  eventDate: string;
+  place: string;
+  informedCount: number;
+  participantCount: number;
+  absentCount: number;
+  absentReasonCount: number;
 }
 
 export default function Page() {
@@ -102,6 +129,8 @@ export default function Page() {
   const [swayamsevaks, setSwayamsevaks] = useState<Swayamsevak[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [shakhas, setShakhas] = useState<Shakha[]>([]);
+  const [shakhaAttendanceLogs, setShakhaAttendanceLogs] = useState<ShakhaAttendanceLog[]>([]);
+  const [eventsList, setEventsList] = useState<EventItem[]>([]);
   const [isDbMock, setIsDbMock] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -114,16 +143,19 @@ export default function Page() {
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [editingSwayamsevak, setEditingSwayamsevak] = useState<Swayamsevak | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
+  const [isDakshinaImportModalOpen, setIsDakshinaImportModalOpen] = useState<boolean>(false);
 
   // Form states
   const [addForm, setAddForm] = useState({
     name: "",
     phone: "",
     email: "",
-    shakha: "Bal Shakha",
+    shakha: "Pravaudh Shakha",
     joiningDate: "",
     status: "active" as "active" | "inactive" | "touring",
-    role: "Swayamsevak"
+    role: "Swayamsevak",
+    age: ""
   });
 
   // Load auth state and fetch database details on mount
@@ -135,6 +167,8 @@ export default function Page() {
     fetchSwayamsevaks();
     fetchContributions();
     fetchShakhas();
+    fetchShakhaAttendanceLogs();
+    fetchEvents();
   }, []);
 
   // Fetch from Neon database API Route
@@ -278,6 +312,152 @@ export default function Page() {
     }
   };
 
+  // Fetch daily shakha attendance logs
+  const fetchShakhaAttendanceLogs = async () => {
+    try {
+      const res = await fetch("/api/shakhas/attendance");
+      const result = await res.json();
+      if (result.data) {
+        setShakhaAttendanceLogs(result.data);
+      }
+    } catch (error) {
+      console.error("Failed to load daily attendance logs:", error);
+    }
+  };
+
+  // Handle Add Daily Attendance Log (POST)
+  const handleAddShakhaAttendanceLog = async (payload: Omit<ShakhaAttendanceLog, "id" | "shakhaName">) => {
+    try {
+      setActionLoading(true);
+      setActionMessage("Recording daily attendance counts...");
+      const res = await fetch("/api/shakhas/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (data.error) {
+        showToast(`Recording failed: ${data.error}`, "error");
+      } else {
+        showToast("Daily attendance logged successfully!", "success");
+      }
+      
+      await fetchShakhaAttendanceLogs();
+    } catch (err: any) {
+      showToast(`Network error: ${err.message || err}`, "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Delete Daily Attendance Log (DELETE)
+  const handleDeleteShakhaAttendanceLog = async (id: string) => {
+    try {
+      setActionLoading(true);
+      setActionMessage("Deleting daily attendance record...");
+      const res = await fetch(`/api/shakhas/attendance/${id}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      
+      if (data.error) {
+        showToast(`Deletion failed: ${data.error}`, "error");
+      } else {
+        showToast("Daily attendance record deleted successfully!", "success");
+      }
+      
+      await fetchShakhaAttendanceLogs();
+    } catch (err: any) {
+      showToast(`Network error: ${err.message || err}`, "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Fetch events list
+  const fetchEvents = async () => {
+    try {
+      const res = await fetch("/api/events");
+      const result = await res.json();
+      if (result.data) {
+        setEventsList(result.data);
+      }
+    } catch (error) {
+      console.error("Failed to load events:", error);
+    }
+  };
+
+  // Handle Add Event (POST)
+  const handleAddEvent = async (payload: Omit<EventItem, "id">) => {
+    try {
+      setActionLoading(true);
+      setActionMessage("Registering new program event...");
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.error) {
+        showToast(`Registration failed: ${data.error}`, "error");
+      } else {
+        showToast("Program event registered successfully!", "success");
+      }
+      await fetchEvents();
+    } catch (err: any) {
+      showToast(`Network error: ${err.message || err}`, "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Edit Event (PUT)
+  const handleEditEvent = async (payload: EventItem) => {
+    try {
+      setActionLoading(true);
+      setActionMessage("Saving event details changes...");
+      const res = await fetch(`/api/events/${payload.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.error) {
+        showToast(`Updating failed: ${data.error}`, "error");
+      } else {
+        showToast("Event details updated successfully!", "success");
+      }
+      await fetchEvents();
+    } catch (err: any) {
+      showToast(`Network error: ${err.message || err}`, "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Delete Event (DELETE)
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      setActionLoading(true);
+      setActionMessage("Deleting program event record...");
+      const res = await fetch(`/api/events/${id}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (data.error) {
+        showToast(`Deletion failed: ${data.error}`, "error");
+      } else {
+        showToast("Program event deleted successfully!", "success");
+      }
+      await fetchEvents();
+    } catch (err: any) {
+      showToast(`Network error: ${err.message || err}`, "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Handle Add Shakha (POST)
   const handleAddShakha = async (payload: Omit<Shakha, "id">) => {
     const newId = `SH-${Math.floor(100 + Math.random() * 900)}`;
@@ -396,9 +576,12 @@ export default function Page() {
       year: "numeric"
     });
 
+    const parsedAge = addForm.age === "" ? undefined : Number(addForm.age);
+
     const newMember: Swayamsevak = {
       id: newId,
       ...addForm,
+      age: parsedAge,
       joiningDate: todayStr,
       dakshina: 0
     };
@@ -437,10 +620,11 @@ export default function Page() {
       name: "",
       phone: "",
       email: "",
-      shakha: "Bal Shakha",
+      shakha: "Pravaudh Shakha",
       joiningDate: "",
       status: "active",
-      role: "Swayamsevak"
+      role: "Swayamsevak",
+      age: ""
     });
   };
 
@@ -635,6 +819,7 @@ export default function Page() {
             swayamsevaks={swayamsevaks}
             contributions={contributions}
             shakhas={shakhas}
+            events={eventsList}
             onRegisterClick={() => {
               handleNavigate("swayamsevaks");
               setIsAddModalOpen(true);
@@ -642,6 +827,7 @@ export default function Page() {
             formatINR={formatINR}
             isMock={isDbMock}
             setView={handleNavigate}
+            attendanceLogs={shakhaAttendanceLogs}
           />
         )}
 
@@ -649,6 +835,7 @@ export default function Page() {
           <SwayamsevaksView
             swayamsevaks={swayamsevaks}
             onAddClick={() => setIsAddModalOpen(true)}
+            onImportClick={() => setIsImportModalOpen(true)}
             onEditClick={openEditModal}
             onDeleteClick={handleDeleteSwayamsevak}
             searchQuery={searchQuery}
@@ -672,6 +859,7 @@ export default function Page() {
             onAddContribution={handleAddContribution}
             onEditContribution={handleEditContribution}
             onDeleteContribution={handleDeleteContribution}
+            onImportClick={() => setIsDakshinaImportModalOpen(true)}
             formatINR={formatINR}
             setView={handleNavigate}
             triggerLoader={(show, msg) => {
@@ -688,10 +876,39 @@ export default function Page() {
             onEditShakha={handleEditShakha}
             onDeleteShakha={handleDeleteShakha}
             setView={handleNavigate}
+            attendanceLogs={shakhaAttendanceLogs}
+            onAddAttendanceLog={handleAddShakhaAttendanceLog}
+            onDeleteAttendanceLog={handleDeleteShakhaAttendanceLog}
           />
         )}
 
-        {!loading && !["dashboard", "swayamsevaks", "dakshina", "shakhas"].includes(currentView) && (
+        {!loading && currentView === "schedule" && (
+          <ScheduleView
+            events={eventsList}
+            onAddEvent={handleAddEvent}
+            onEditEvent={handleEditEvent}
+            onDeleteEvent={handleDeleteEvent}
+            setView={handleNavigate}
+          />
+        )}
+
+        {!loading && currentView === "reports" && (
+          <ReportsView
+            swayamsevaks={swayamsevaks}
+            contributions={contributions}
+            shakhas={shakhas}
+            attendanceLogs={shakhaAttendanceLogs}
+            events={eventsList}
+            formatINR={formatINR}
+            setView={handleNavigate}
+            triggerLoader={(show, msg) => {
+              setActionLoading(show);
+              setActionMessage(msg);
+            }}
+          />
+        )}
+
+        {!loading && !["dashboard", "swayamsevaks", "dakshina", "shakhas", "schedule", "reports"].includes(currentView) && (
           <GenericPlaceholderView
             viewName={currentView}
             setView={handleNavigate}
@@ -724,6 +941,33 @@ export default function Page() {
           submitLabel="Save Changes"
         />
       )}
+
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        existingMembers={swayamsevaks}
+        onImportSuccess={(msg) => showToast(msg, "success")}
+        onRefreshData={fetchSwayamsevaks}
+        showToast={showToast}
+        triggerLoader={(show, msg) => {
+          setActionLoading(show);
+          setActionMessage(msg);
+        }}
+      />
+
+      <DakshinaImportModal
+        isOpen={isDakshinaImportModalOpen}
+        onClose={() => setIsDakshinaImportModalOpen(false)}
+        existingMembers={swayamsevaks}
+        existingContributions={contributions}
+        onImportSuccess={(msg) => showToast(msg, "success")}
+        onRefreshData={fetchContributions}
+        showToast={showToast}
+        triggerLoader={(show, msg) => {
+          setActionLoading(show);
+          setActionMessage(msg);
+        }}
+      />
 
       {/* Custom Delete Confirmation Modal */}
       {deleteConfirmId && (

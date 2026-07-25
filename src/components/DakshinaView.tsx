@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { CreditCard, Users, Plus, Edit2, Trash2, ShieldAlert, X, Search, FileText } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { CreditCard, Users, Plus, Edit2, Trash2, ShieldAlert, X, Search, Download, Upload } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface Swayamsevak {
   id: string;
@@ -15,6 +14,7 @@ interface Swayamsevak {
   status: "active" | "inactive" | "touring";
   role: string;
   dakshina: number;
+  age?: number;
 }
 
 interface Contribution {
@@ -32,6 +32,7 @@ interface DakshinaViewProps {
   onAddContribution: (payload: Omit<Contribution, "id" | "contributionDate">) => Promise<void>;
   onEditContribution: (payload: Contribution) => Promise<void>;
   onDeleteContribution: (id: string) => Promise<void>;
+  onImportClick: () => void;
   formatINR: (value: number) => string;
   setView: (view: string) => void;
   triggerLoader?: (show: boolean, msg: string) => void;
@@ -43,6 +44,7 @@ export default function DakshinaView({
   onAddContribution,
   onEditContribution,
   onDeleteContribution,
+  onImportClick,
   formatINR,
   setView,
   triggerLoader
@@ -164,88 +166,36 @@ export default function DakshinaView({
     setIsOpen(false);
   };
 
-  // Export PDF Ledger Function
-  const exportLedgerToPDF = () => {
+  // Export Excel Ledger Function
+  const exportLedgerToExcel = () => {
     if (triggerLoader) {
-      triggerLoader(true, "Generating PDF Document...");
+      triggerLoader(true, "Generating Excel Spreadsheet...");
     }
 
     setTimeout(() => {
       try {
-        const doc = new jsPDF({
-          orientation: "portrait",
-          unit: "mm",
-          format: "a4"
-        });
+        const dataToExport = filteredContributions.map((c) => ({
+          "Swayamsevak Name": c.name,
+          "Shakha Unit": c.shakha,
+          "Contribution Date": c.contributionDate,
+          "Amount (INR)": c.amount
+        }));
 
-        // 1. Title / Header
-        doc.setFont("Helvetica", "bold");
-        doc.setFontSize(20);
-        doc.setTextColor(242, 109, 33); // Saffron brand color
-        doc.text("Rashtriya Swayamsevak Sangh, Thiruvangoor", 14, 18);
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
 
-        // Subtitle
-        doc.setFont("Helvetica", "normal");
-        doc.setFontSize(12);
-        doc.setTextColor(100, 116, 139); // Gray slate
-        doc.text("Guru Dakshina Ledger", 14, 25);
+        const columnWidths = [
+          { wch: 30 },
+          { wch: 20 },
+          { wch: 20 },
+          { wch: 18 }
+        ];
+        worksheet["!cols"] = columnWidths;
 
-        // Metainfo
-        const dateStr = new Date().toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit"
-        });
-        doc.setFontSize(10);
-        doc.setTextColor(100, 116, 139);
-        doc.text(
-          `Generated: ${dateStr}  |  Total Entries: ${filteredContributions.length}  |  Total Collection: ${formatINR(totalGuruDakshinaCollected)}`,
-          14,
-          32
-        );
-
-        // Divider line
-        doc.setDrawColor(242, 109, 33);
-        doc.setLineWidth(0.5);
-        doc.line(14, 35, 196, 35); // A4 portrait width is 210mm (margins 14mm)
-
-        // 2. Data rows prep
-        const headers = [["Swayamsevak Name", "Shakha Unit", "Contribution Date", "Amount"]];
-        const body = filteredContributions.map((c) => [
-          c.name,
-          c.shakha,
-          c.contributionDate,
-          formatINR(c.amount)
-        ]);
-
-        // 3. AutoTable rendering
-        autoTable(doc, {
-          startY: 40,
-          head: headers,
-          body: body,
-          theme: "striped",
-          headStyles: {
-            fillColor: [242, 109, 33], // Saffron header
-            textColor: [255, 255, 255],
-            fontSize: 10,
-            fontStyle: "bold"
-          },
-          bodyStyles: {
-            fontSize: 9,
-            textColor: [33, 43, 54]
-          },
-          alternateRowStyles: {
-            fillColor: [248, 250, 252] // Light slate
-          },
-          margin: { left: 14, right: 14 }
-        });
-
-        // 4. Save file
-        doc.save(`RSS_Thiruvangoor_Guru_Dakshina_${new Date().toISOString().slice(0, 10)}.pdf`);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Guru Dakshina");
+        XLSX.writeFile(workbook, `RSS_Thiruvangoor_Guru_Dakshina_${new Date().toISOString().slice(0, 10)}.xlsx`);
       } catch (error: any) {
-        console.error("PDF Export error:", error);
+        console.error("Excel Export error:", error);
       } finally {
         if (triggerLoader) {
           triggerLoader(false, "");
@@ -263,8 +213,11 @@ export default function DakshinaView({
             <p>Track and manage voluntary contributions from members of the Thiruvangoor unit.</p>
           </div>
           <div style={{ display: "flex", gap: "12px" }}>
-            <button className="btn-secondary" style={{ display: "flex", gap: "8px", alignItems: "center", height: "42px" }} onClick={exportLedgerToPDF}>
-              <FileText size={16} /> Export PDF
+            <button className="btn-secondary" style={{ display: "flex", gap: "8px", alignItems: "center", height: "42px" }} onClick={exportLedgerToExcel}>
+              <Download size={16} /> Export Excel
+            </button>
+            <button className="btn-secondary" style={{ display: "flex", gap: "8px", alignItems: "center", height: "42px" }} onClick={onImportClick}>
+              <Upload size={16} /> Import Excel
             </button>
             <button className="btn-primary saffron" style={{ display: "flex", gap: "8px", alignItems: "center", height: "42px" }} onClick={handleOpenAdd}>
               <Plus size={16} /> Record Contribution

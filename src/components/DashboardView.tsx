@@ -25,6 +25,7 @@ interface Swayamsevak {
   status: "active" | "inactive" | "touring";
   role: string;
   dakshina: number;
+  age?: number;
 }
 
 interface Contribution {
@@ -40,20 +41,24 @@ interface DashboardViewProps {
   swayamsevaks: Swayamsevak[];
   contributions: Contribution[];
   shakhas: any[];
+  events: any[];
   onRegisterClick: () => void;
   formatINR: (value: number) => string;
   isMock: boolean;
   setView: (view: string) => void;
+  attendanceLogs?: any[];
 }
 
 export default function DashboardView({
   swayamsevaks,
   contributions,
   shakhas,
+  events = [],
   onRegisterClick,
   formatINR,
   isMock,
-  setView
+  setView,
+  attendanceLogs = []
 }: DashboardViewProps) {
   const totalSwayamsevaksCount = swayamsevaks.length;
   const activeSwayamsevaksCount = swayamsevaks.filter((m) => m.status === "active").length;
@@ -61,32 +66,11 @@ export default function DashboardView({
 
 
 
-  const events = [
-    {
-      id: "EV-01",
-      title: "Vijayadashami Utsav",
-      day: "20",
-      month: "Oct",
-      location: "Thiruvangoor Higher Secondary School Ground",
-      type: "Varshik Utsav",
-    },
-    {
-      id: "EV-02",
-      title: "Guru Puja Utsav",
-      day: "04",
-      month: "Aug",
-      location: "Thiruvangoor Community Hall",
-      type: "Varshik Utsav",
-    },
-    {
-      id: "EV-03",
-      title: "Raksha Bandhan Milan",
-      day: "28",
-      month: "Aug",
-      location: "Chemancheri Balagokulam Hall",
-      type: "Milan",
-    }
-  ];
+  const todayStr = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+  const upcomingEvents = (events || [])
+    .filter((ev) => ev.eventDate >= todayStr)
+    .sort((a, b) => a.eventDate.localeCompare(b.eventDate))
+    .slice(0, 3);
 
   return (
     <>
@@ -222,61 +206,104 @@ export default function DashboardView({
             </div>
 
             <div className="event-list">
-              {events.map((event) => (
-                <div key={event.id} className="event-item">
-                  <div className="event-date-box">
-                    <span className="event-date-day">{event.day}</span>
-                    <span className="event-date-month">{event.month}</span>
-                  </div>
-                  <div className="event-details">
-                    <h4>{event.title}</h4>
-                    <p>
-                      <MapPin /> {event.location} • <Flag /> {event.type}
-                    </p>
-                  </div>
+              {upcomingEvents.length === 0 ? (
+                <div style={{ padding: "24px", textAlign: "center", color: "var(--text-secondary)", fontSize: "14px" }}>
+                  No upcoming programs scheduled.
                 </div>
-              ))}
+              ) : (
+                upcomingEvents.map((event) => {
+                  const d = new Date(event.eventDate);
+                  const day = isNaN(d.getTime()) ? "01" : d.getDate().toString().padStart(2, "0");
+                  const month = isNaN(d.getTime()) ? "Oct" : d.toLocaleString("en-US", { month: "short" });
+
+                  return (
+                    <div key={event.id} className="event-item" onClick={() => setView("schedule")} style={{ cursor: "pointer" }}>
+                      <div className="event-date-box">
+                        <span className="event-date-day">{day}</span>
+                        <span className="event-date-month">{month}</span>
+                      </div>
+                      <div className="event-details">
+                        <h4>{event.name}</h4>
+                        <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <MapPin size={12} /> {event.place}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
 
         {/* Right panel widgets */}
         <div className="dashboard-panel-right">
-          <div className="content-panel" style={{ height: "100%" }}>
-            <div className="panel-header">
-              <h3>
-                <Activity /> Attendance Status
-              </h3>
-            </div>
+          {/* Attendance Status Widget */}
+          {(() => {
+            const todayStr = new Date().toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric"
+            });
 
-            <div className="status-indicator-list">
-              <div className="status-indicator-row">
-                <div className="status-indicator-info green">
-                  <UserCheck />
-                  <span>Present Today</span>
-                </div>
-                <span className="status-indicator-val">74</span>
-              </div>
+            let displayDate = todayStr;
+            let activeLogs = attendanceLogs.filter(
+              (log) => log.logDate.trim() === todayStr.trim()
+            );
 
-              <div className="status-indicator-row">
-                <div className="status-indicator-info orange">
-                  <Clock />
-                  <span>Touring / Pravas</span>
-                </div>
-                <span className="status-indicator-val">8</span>
-              </div>
+            if (activeLogs.length === 0 && attendanceLogs.length > 0) {
+              const mostRecentDate = attendanceLogs[0].logDate;
+              displayDate = mostRecentDate;
+              activeLogs = attendanceLogs.filter(
+                (log) => log.logDate.trim() === mostRecentDate.trim()
+              );
+            }
 
-              <div className="status-indicator-row">
-                <div className="status-indicator-info red">
-                  <Users />
-                  <span>Absent / Leave</span>
+            const presentCount = activeLogs.reduce((sum, log) => sum + log.presentCount, 0);
+            const absentCount = activeLogs.reduce((sum, log) => sum + log.absentCount, 0);
+            const absentReasonCount = activeLogs.reduce((sum, log) => sum + log.absentReasonCount, 0);
+
+            return (
+              <div className="content-panel" style={{ height: "auto" }}>
+                <div className="panel-header">
+                  <h3>
+                    <Activity /> Attendance Status
+                  </h3>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>
+                    {displayDate === todayStr ? "Today" : displayDate}
+                  </span>
                 </div>
-                <span className="status-indicator-val">12</span>
+
+                <div className="status-indicator-list">
+                  <div className="status-indicator-row">
+                    <div className="status-indicator-info green">
+                      <UserCheck />
+                      <span>Present / Participants</span>
+                    </div>
+                    <span className="status-indicator-val">{presentCount}</span>
+                  </div>
+
+                  <div className="status-indicator-row">
+                    <div className="status-indicator-info orange">
+                      <Clock />
+                      <span>Absent (Excused)</span>
+                    </div>
+                    <span className="status-indicator-val">{absentReasonCount}</span>
+                  </div>
+
+                  <div className="status-indicator-row">
+                    <div className="status-indicator-info red">
+                      <Users />
+                      <span>Absent (Unexcused)</span>
+                    </div>
+                    <span className="status-indicator-val">{absentCount}</span>
+                  </div>
+                </div>
               </div>
-            </div>
+            );
+          })()}
 
             {/* Ghosh Equipment removed */}
-          </div>
         </div>
       </div>
     </>

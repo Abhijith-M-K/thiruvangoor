@@ -9,9 +9,9 @@ export async function PUT(request: Request, { params }: Params) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, phone, email, shakha, status, role, dakshina, age } = body;
+    const { name, eventDate, place, informedCount, participantCount, absentCount, absentReasonCount } = body;
 
-    if (!name || !phone || !shakha || !status || !role) {
+    if (!name || !eventDate || !place || informedCount === undefined || participantCount === undefined || absentCount === undefined || absentReasonCount === undefined) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -20,7 +20,7 @@ export async function PUT(request: Request, { params }: Params) {
 
     if (!isDbConfigured) {
       return NextResponse.json(
-        { error: "Vercel Neon Database is not configured. Define DATABASE_URL in your .env.local file." },
+        { error: "Vercel Neon Database is not configured." },
         { status: 500 }
       );
     }
@@ -34,24 +34,23 @@ export async function PUT(request: Request, { params }: Params) {
     }
 
     await sql`
-      UPDATE swayamsevaks 
+      UPDATE events
       SET 
-        name = ${name}, 
-        phone = ${phone}, 
-        email = ${email || null}, 
-        shakha = ${shakha}, 
-        status = ${status}, 
-        role = ${role},
-        dakshina = ${dakshina || 0},
-        age = ${age || null}
+        name = ${name},
+        event_date = ${eventDate},
+        place = ${place},
+        informed_count = ${informedCount},
+        participant_count = ${participantCount},
+        absent_count = ${absentCount},
+        absent_reason_count = ${absentReasonCount}
       WHERE id = ${id}
     `;
 
-    return NextResponse.json({ success: true, isMock: false });
+    return NextResponse.json({ success: true, isMock: false, data: { id, ...body } });
   } catch (error: any) {
-    console.error("Database update error:", error);
+    console.error("Database update error on events:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to update record in Neon Database." },
+      { error: error.message || "Failed to update event in Neon Database." },
       { status: 500 }
     );
   }
@@ -63,7 +62,7 @@ export async function DELETE(request: Request, { params }: Params) {
 
     if (!isDbConfigured) {
       return NextResponse.json(
-        { error: "Vercel Neon Database is not configured. Define DATABASE_URL in your .env.local file." },
+        { error: "Vercel Neon Database is not configured." },
         { status: 500 }
       );
     }
@@ -77,15 +76,15 @@ export async function DELETE(request: Request, { params }: Params) {
     }
 
     await sql`
-      DELETE FROM swayamsevaks 
+      DELETE FROM events
       WHERE id = ${id}
     `;
 
     return NextResponse.json({ success: true, isMock: false });
   } catch (error: any) {
-    console.error("Database deletion error:", error);
+    console.error("Database deletion error on events:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to delete record in Neon Database." },
+      { error: error.message || "Failed to delete event in Neon Database." },
       { status: 500 }
     );
   }
