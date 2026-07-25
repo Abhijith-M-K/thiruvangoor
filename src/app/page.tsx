@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Mail, Lock, ChevronRight, Flag, ShieldAlert, Users, X } from "lucide-react";
+import { Mail, Lock, ChevronRight, Flag, ShieldAlert, Users, X, Menu } from "lucide-react";
 
 import Sidebar from "@/components/Sidebar";
 import DashboardView from "@/components/DashboardView";
@@ -79,6 +79,7 @@ export default function Page() {
 
   // Navigation state
   const [currentView, setCurrentView] = useState<string>("dashboard");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Toast notifications state
   const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" }[]>([]);
@@ -798,10 +799,30 @@ export default function Page() {
         currentView={currentView}
         setCurrentView={handleNavigate}
         handleLogout={handleLogout}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
+      />
+
+      {/* Mobile Sidebar Overlay */}
+      <div 
+        className={`sidebar-overlay ${isSidebarOpen ? "show" : ""}`} 
+        onClick={() => setIsSidebarOpen(false)} 
       />
 
       {/* Main Panel Content Router */}
       <main className="main-wrapper">
+        {/* Mobile Header Bar */}
+        <div className="mobile-header">
+          <button className="menu-toggle-btn" onClick={() => setIsSidebarOpen(true)}>
+            <Menu size={24} />
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div className="sidebar-logo rss" style={{ width: "32px", height: "32px", padding: 0 }}>
+              <Flag fill="currentColor" size={16} />
+            </div>
+            <span style={{ fontWeight: 700, fontSize: "15px", color: "var(--text-primary)" }}>RSS Thiruvangoor</span>
+          </div>
+        </div>
         {loading && (
           <div style={{
             display: "flex",
