@@ -555,7 +555,7 @@ export default function Page() {
       localStorage.setItem("rss_admin_auth", "true");
       showToast("Welcome back to RSS Thiruvangoor Admin Portal!", "success");
     } else {
-      setAuthError("Invalid credentials. Please use rssthiruvangoor@gmail.com / Thiruvangoor@123");
+      setAuthError("Invalid email address or password. Please try again.");
     }
   };
 
