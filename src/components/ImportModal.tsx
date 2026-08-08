@@ -112,54 +112,54 @@ export default function ImportModal({
           return;
         }
 
-        // Standardize columns and check duplicates
+        // Standardize columns and check duplicates by Name
+        const seenNamesInFile = new Set<string>();
+
         const parsedRows: ParsedRow[] = rawJson.map((row) => {
           const normalizedRow: any = {};
           Object.keys(row).forEach((k) => {
             normalizedRow[k.trim().toLowerCase()] = String(row[k]).trim();
           });
 
-          const name = normalizedRow.name || normalizedRow["full name"] || normalizedRow["member name"] || "";
-          const phone = normalizedRow.phone || normalizedRow["phone number"] || normalizedRow["mobile"] || "";
-          const email = normalizedRow.email || normalizedRow["email address"] || "";
+          const name = String(normalizedRow.name || normalizedRow["full name"] || normalizedRow["member name"] || "").trim();
+          const phone = String(normalizedRow.phone || normalizedRow["phone number"] || normalizedRow["mobile"] || "").trim();
+          const email = String(normalizedRow.email || normalizedRow["email address"] || "").trim();
           const ageVal = normalizedRow.age || "";
           const parsedAge = ageVal ? parseInt(ageVal, 10) : undefined;
           const shakha = getShakhaFromAge(parsedAge);
 
-          // Validation
+          // Validation (Phone is optional)
           let isValid = true;
           let validationError = "";
-          const cleanPhone = phone.replace(/[^0-9]/g, "");
+          const cleanPhone = phone ? phone.replace(/[^0-9]/g, "") : "";
 
           if (!name) {
             isValid = false;
             validationError = "Name is required";
-          } else if (!phone) {
+          } else if (cleanPhone && cleanPhone.length !== 10) {
             isValid = false;
-            validationError = "Phone is required";
-          } else if (cleanPhone.length !== 10) {
-            isValid = false;
-            validationError = "Phone must be exactly 10 digits";
+            validationError = "Phone must be 10 digits if provided";
           }
 
-          // Duplicate checks (in client state)
+          // Duplicate checks by Name only
           let isDuplicate = false;
           let duplicateReason = "";
 
           if (isValid) {
-            const phoneExists = existingMembers.some(
-              (m) => m.phone.replace(/[^0-9]/g, "") === cleanPhone
+            const upperName = name.toUpperCase();
+            const nameExistsInDb = existingMembers.some(
+              (m) => m.name && m.name.trim().toUpperCase() === upperName
             );
-            const emailExists = email
-              ? existingMembers.some((m) => m.email && m.email.toLowerCase() === email.toLowerCase())
-              : false;
+            const nameExistsInFile = seenNamesInFile.has(upperName);
 
-            if (phoneExists) {
+            if (nameExistsInDb) {
               isDuplicate = true;
-              duplicateReason = "Phone number already exists in DB";
-            } else if (emailExists) {
+              duplicateReason = "Member name already exists in DB";
+            } else if (nameExistsInFile) {
               isDuplicate = true;
-              duplicateReason = "Email already exists in DB";
+              duplicateReason = "Duplicate name in uploaded file";
+            } else {
+              seenNamesInFile.add(upperName);
             }
           }
 
@@ -272,7 +272,7 @@ export default function ImportModal({
               <p style={{ color: "var(--text-secondary)", fontSize: "14px", lineHeight: 1.5 }}>
                 Upload an Excel (.xlsx, .xls) or CSV file containing lists of Swayamsevaks. 
                 The system will automatically assign roles as <strong>Swayamsevak</strong> and compute 
-                the Shakha Unit using the age column. Duplicate phone numbers or email addresses will be automatically detected and skipped.
+                the Shakha Unit using the age column. Phone number is optional. Duplicate member names will be automatically detected and skipped.
               </p>
 
               {/* Template Download Section */}

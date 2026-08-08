@@ -59,14 +59,13 @@ export default function MemberModal({
 
             <div className="form-row">
               <div className="form-group">
-                <label>Phone Number</label>
+                <label>Phone Number (Optional)</label>
                 <input
                   type="tel"
                   className="form-control"
-                  placeholder="10 digit mobile"
+                  placeholder="10 digit mobile (optional)"
                   value={formData.phone || ""}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  required
                 />
               </div>
               <div className="form-group">

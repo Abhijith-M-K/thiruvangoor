@@ -132,28 +132,37 @@ export default function DakshinaImportModal({
           let validationError = "";
           const amount = parseInt(amountVal, 10);
 
-          if (!name && !phone) {
+          if (!name) {
             isValid = false;
-            validationError = "Name or Phone is required";
+            validationError = "Name is required";
           } else if (isNaN(amount) || amount <= 0) {
             isValid = false;
             validationError = "Invalid amount (must be > 0)";
           }
 
-          // Linking logic by phone number
+          // Linking logic by Name first, fallback to phone number
           let isLinked = false;
           let linkedSwayamsevakName = "";
-          const cleanPhone = phone.replace(/[^0-9]/g, "");
+          const cleanPhone = phone ? phone.replace(/[^0-9]/g, "") : "";
 
-          if (cleanPhone) {
-            const matched = existingMembers.find(
-              (m) => m.phone.replace(/[^0-9]/g, "") === cleanPhone
+          const matchedByName = name ? existingMembers.find(
+            (m) => m.name && m.name.trim().toUpperCase() === name.trim().toUpperCase()
+          ) : null;
+
+          if (matchedByName) {
+            isLinked = true;
+            name = matchedByName.name; // Use DB name
+            shakha = matchedByName.shakha; // Use DB shakha
+            linkedSwayamsevakName = matchedByName.name;
+          } else if (cleanPhone) {
+            const matchedByPhone = existingMembers.find(
+              (m) => m.phone && m.phone.replace(/[^0-9]/g, "") === cleanPhone
             );
-            if (matched) {
+            if (matchedByPhone) {
               isLinked = true;
-              name = matched.name; // Use DB name
-              shakha = matched.shakha; // Use DB shakha
-              linkedSwayamsevakName = matched.name;
+              name = matchedByPhone.name; // Use DB name
+              shakha = matchedByPhone.shakha; // Use DB shakha
+              linkedSwayamsevakName = matchedByPhone.name;
             }
           }
 

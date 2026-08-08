@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { id, name, phone, email, shakha, joiningDate, status, role, dakshina, age } = body;
 
-    if (!id || !name || !phone || !shakha || !status || !role) {
+    if (!id || !name || !shakha || !status || !role) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
     await sql`
       INSERT INTO swayamsevaks (id, name, phone, email, shakha, joining_date, status, role, dakshina, age)
-      VALUES (${id}, ${name}, ${phone}, ${email || null}, ${shakha}, ${joiningDate}, ${status}, ${role}, ${dakshina || 0}, ${age || null})
+      VALUES (${id}, ${name}, ${phone || ""}, ${email || null}, ${shakha}, ${joiningDate}, ${status}, ${role}, ${dakshina || 0}, ${age || null})
     `;
 
     return NextResponse.json({ success: true, isMock: false, data: body });

@@ -11,7 +11,7 @@ export async function PUT(request: Request, { params }: Params) {
     const body = await request.json();
     const { name, phone, email, shakha, status, role, dakshina, age } = body;
 
-    if (!name || !phone || !shakha || !status || !role) {
+    if (!name || !shakha || !status || !role) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -37,7 +37,7 @@ export async function PUT(request: Request, { params }: Params) {
       UPDATE swayamsevaks 
       SET 
         name = ${name}, 
-        phone = ${phone}, 
+        phone = ${phone || ""}, 
         email = ${email || null}, 
         shakha = ${shakha}, 
         status = ${status}, 

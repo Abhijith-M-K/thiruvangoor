@@ -183,12 +183,11 @@ export default function ShakhasView({
       !formName.trim() ||
       !formTime.trim() ||
       !formLocation.trim() ||
-      !formMukhyaShikshak.trim() ||
-      !formAttendance
+      !formMukhyaShikshak.trim()
     )
       return;
 
-    const attendanceNum = Number(formAttendance);
+    const attendanceNum = editingItem ? (Number(formAttendance) || 0) : 0;
 
     if (editingItem) {
       // Edit
@@ -209,7 +208,7 @@ export default function ShakhasView({
         time: formTime.trim(),
         location: formLocation.trim(),
         mukhyaShikshak: formMukhyaShikshak.trim(),
-        attendance: attendanceNum
+        attendance: 0
       });
     }
 
@@ -626,18 +625,20 @@ export default function ShakhasView({
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Active Attendance Count *</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    placeholder="e.g. 24"
-                    min="0"
-                    value={formAttendance}
-                    onChange={(e) => setFormAttendance(e.target.value)}
-                    required
-                  />
-                </div>
+                {editingItem && (
+                  <div className="form-group">
+                    <label className="form-label">Active Attendance Count *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="e.g. 24"
+                      min="0"
+                      value={formAttendance}
+                      onChange={(e) => setFormAttendance(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer">
@@ -679,7 +680,7 @@ export default function ShakhasView({
                     required
                   >
                     {shakhas.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
+                      <option key={s.id} value={s.id}>{s.name} ({s.location})</option>
                     ))}
                   </select>
                 </div>
@@ -723,7 +724,7 @@ export default function ShakhasView({
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Absent with Reason (Counts) *</label>
+                  <label className="form-label">Excuse / Absent with Reason (Counts) *</label>
                   <input
                     type="number"
                     className="form-control"

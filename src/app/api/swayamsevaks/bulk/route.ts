@@ -31,25 +31,25 @@ export async function POST(request: Request) {
     // Auto-create tables if not exist before performing bulk insertion
     await ensureTablesExist(sql);
 
-    // Fetch existing phone and email lists for duplicate checking
+    // Fetch existing member names for duplicate checking by name
     const existing = await sql`
-      SELECT phone, email FROM swayamsevaks
+      SELECT name FROM swayamsevaks
     `;
-    const existingPhones = new Set(existing.map((r: any) => r.phone));
-    const existingEmails = new Set(
-      existing.map((r: any) => r.email).filter(Boolean)
+    const existingNames = new Set(
+      existing.map((r: any) => (r.name || "").trim().toUpperCase())
     );
 
     const toInsert: any[] = [];
     const duplicates: any[] = [];
 
     for (const member of members) {
-      const phoneExists = existingPhones.has(member.phone);
-      const emailExists = member.email ? existingEmails.has(member.email) : false;
+      const normalizedName = (member.name || "").trim().toUpperCase();
+      const nameExists = existingNames.has(normalizedName);
 
-      if (phoneExists || emailExists) {
+      if (nameExists) {
         duplicates.push(member);
       } else {
+        existingNames.add(normalizedName);
         toInsert.push(member);
       }
     }
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         VALUES (
           ${newId}, 
           ${member.name.toUpperCase()}, 
-          ${member.phone}, 
+          ${member.phone || ""}, 
           ${member.email || null}, 
           ${member.shakha}, 
           ${member.joiningDate || todayStr}, 

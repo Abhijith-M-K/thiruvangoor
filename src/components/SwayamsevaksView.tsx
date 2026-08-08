@@ -218,7 +218,7 @@ export default function SwayamsevaksView({
                             {member.name}
                           </h4>
                           <p>
-                            ID: {member.id} • {member.phone}{member.age !== undefined && member.age !== null ? ` • Age: ${member.age}` : ""}
+                            ID: {member.id}{member.phone ? ` • ${member.phone}` : ""}{member.age !== undefined && member.age !== null ? ` • Age: ${member.age}` : ""}
                           </p>
                         </div>
                       </div>

@@ -44,16 +44,20 @@ export async function POST(request: Request) {
       )
     );
 
-    // Fetch all existing swayamsevaks to map matching phones
+    // Fetch all existing swayamsevaks to map matching names and phones
     const swayamsevaks = await sql`
       SELECT id, name, phone, shakha FROM swayamsevaks
     `;
-    // Create a lookup map of phone -> swayamsevak
-    const swayamsevakLookup = new Map();
+    // Create lookup maps for name -> swayamsevak and phone -> swayamsevak
+    const swayamsevakNameLookup = new Map();
+    const swayamsevakPhoneLookup = new Map();
     swayamsevaks.forEach((s: any) => {
-      const cleanPhone = s.phone.replace(/[^0-9]/g, "");
+      if (s.name) {
+        swayamsevakNameLookup.set(s.name.trim().toUpperCase(), s);
+      }
+      const cleanPhone = s.phone ? s.phone.replace(/[^0-9]/g, "") : "";
       if (cleanPhone) {
-        swayamsevakLookup.set(cleanPhone, s);
+        swayamsevakPhoneLookup.set(cleanPhone, s);
       }
     });
 
@@ -65,14 +69,19 @@ export async function POST(request: Request) {
       let finalName = item.name ? item.name.toUpperCase().trim() : "";
       let finalShakha = item.shakha || "Pravaudh Shakha";
 
-      // Try matching by phone
-      if (item.phone) {
+      // Try matching by name first, fallback to phone
+      const matchedByName = finalName ? swayamsevakNameLookup.get(finalName) : null;
+      if (matchedByName) {
+        linkedId = matchedByName.id;
+        finalName = matchedByName.name;
+        finalShakha = matchedByName.shakha;
+      } else if (item.phone) {
         const cleanPhone = String(item.phone).replace(/[^0-9]/g, "");
-        const matched = swayamsevakLookup.get(cleanPhone);
-        if (matched) {
-          linkedId = matched.id;
-          finalName = matched.name;
-          finalShakha = matched.shakha;
+        const matchedByPhone = swayamsevakPhoneLookup.get(cleanPhone);
+        if (matchedByPhone) {
+          linkedId = matchedByPhone.id;
+          finalName = matchedByPhone.name;
+          finalShakha = matchedByPhone.shakha;
         }
       }
 

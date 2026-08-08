@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Mail, Lock, ChevronRight, Flag, ShieldAlert, Users, X, Menu } from "lucide-react";
+import { Mail, Lock, ChevronRight, Flag, ShieldAlert, Users, X, Menu, Eye, EyeOff } from "lucide-react";
 
 import Sidebar from "@/components/Sidebar";
 import DashboardView from "@/components/DashboardView";
@@ -73,8 +73,10 @@ interface EventItem {
 export default function Page() {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [authEmail, setAuthEmail] = useState<string>("rssthiruvangoor@gmail.com");
-  const [authPassword, setAuthPassword] = useState<string>("Thiruvangoor@123");
+  const [hasMounted, setHasMounted] = useState<boolean>(false);
+  const [authEmail, setAuthEmail] = useState<string>("");
+  const [authPassword, setAuthPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string>("");
 
   // Navigation state
@@ -119,7 +121,7 @@ export default function Page() {
     setTimeout(() => {
       setCurrentView(viewName);
       if (viewName === "swayamsevaks") {
-        fetchSwayamsevaks();
+        fetchSwayamsevaks(true);
       } else {
         setActionLoading(false);
       }
@@ -161,34 +163,49 @@ export default function Page() {
 
   // Load auth state and fetch database details on mount
   useEffect(() => {
-    const authStatus = localStorage.getItem("rss_admin_auth");
-    if (authStatus === "true") {
-      setIsAuthenticated(true);
+    try {
+      const authStatus = localStorage.getItem("rss_admin_auth");
+      if (authStatus === "true") {
+        setIsAuthenticated(true);
+        fetchSwayamsevaks(false);
+        fetchContributions();
+        fetchShakhas();
+        fetchShakhaAttendanceLogs();
+        fetchEvents();
+      } else {
+        setLoading(false);
+      }
+    } catch (e) {
+      console.error("Failed to access localStorage:", e);
+      setLoading(false);
+    } finally {
+      setHasMounted(true);
     }
-    fetchSwayamsevaks();
-    fetchContributions();
-    fetchShakhas();
-    fetchShakhaAttendanceLogs();
-    fetchEvents();
   }, []);
 
   // Fetch from Neon database API Route
-  const fetchSwayamsevaks = async () => {
+  const fetchSwayamsevaks = async (showOverlay: boolean = false) => {
     try {
       setLoading(true);
-      setActionLoading(true);
-      setActionMessage("Synchronizing Swayamsevak Roster...");
-      const res = await fetch("/api/swayamsevaks");
-      const result = await res.json();
-      if (result.data) {
-        setSwayamsevaks(result.data);
+      if (showOverlay) {
+        setActionLoading(true);
+        setActionMessage("Synchronizing Swayamsevak Roster...");
       }
-      setIsDbMock(!!result.isMock);
+      const res = await fetch("/api/swayamsevaks");
+      if (res.ok) {
+        const result = await res.json();
+        if (result.data) {
+          setSwayamsevaks(result.data);
+        }
+        setIsDbMock(!!result.isMock);
+      }
     } catch (error) {
       console.error("Failed to load Swayamsevaks:", error);
     } finally {
       setLoading(false);
-      setActionLoading(false);
+      if (showOverlay) {
+        setActionLoading(false);
+      }
     }
   };
 
@@ -551,10 +568,25 @@ export default function Page() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (authEmail === "rssthiruvangoor@gmail.com" && authPassword === "Thiruvangoor@123") {
-      setIsAuthenticated(true);
+      setActionLoading(true);
+      setActionMessage("Logging into RSS Thiruvangoor Portal...");
       setAuthError("");
-      localStorage.setItem("rss_admin_auth", "true");
-      showToast("Welcome back to RSS Thiruvangoor Admin Portal!", "success");
+      try {
+        localStorage.setItem("rss_admin_auth", "true");
+      } catch (e) {
+        console.error("Failed to set localStorage:", e);
+      }
+
+      setTimeout(() => {
+        setIsAuthenticated(true);
+        showToast("Welcome back to RSS Thiruvangoor Admin Portal!", "success");
+        fetchSwayamsevaks(false);
+        fetchContributions();
+        fetchShakhas();
+        fetchShakhaAttendanceLogs();
+        fetchEvents();
+        setActionLoading(false);
+      }, 700);
     } else {
       setAuthError("Invalid email address or password. Please try again.");
     }
@@ -719,6 +751,12 @@ export default function Page() {
 
   // Render Login Gate
   if (!isAuthenticated) {
+    if (!hasMounted) {
+      return (
+        <div className="auth-container" style={{ opacity: 0 }} />
+      );
+    }
+
     return (
       <div className="auth-container">
         <div className="auth-card">
@@ -756,7 +794,7 @@ export default function Page() {
                 <input
                   type="email"
                   className="auth-input"
-                  placeholder="rssthiruvangoor@gmail.com"
+                  placeholder="Enter email address"
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
                   required
@@ -769,13 +807,36 @@ export default function Page() {
               <div className="auth-input-wrapper">
                 <Lock className="auth-input-icon" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   className="auth-input"
-                  placeholder="••••••••"
+                  placeholder="Enter password"
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
+                  style={{ paddingRight: "42px" }}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: "absolute",
+                    right: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-secondary)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "4px",
+                    zIndex: 2
+                  }}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -788,6 +849,19 @@ export default function Page() {
             Secure Administrative Gateway • v1.2.0
           </div>
         </div>
+
+        {/* Om Loader Overlay for Login transition */}
+        {actionLoading && (
+          <div className="om-loader-overlay">
+            <div className="om-loader-container">
+              <div className="om-loader-spinner-wrapper">
+                <div className="om-loader-spinner-ring"></div>
+                <div className="om-symbol-pulsing">ॐ</div>
+              </div>
+              <div className="om-loader-text">{actionMessage || "Rashtriya Swayamsevak Sangh"}</div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -828,10 +902,16 @@ export default function Page() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "48px",
-            color: "var(--text-secondary)"
+            padding: "80px 20px",
+            width: "100%"
           }}>
-            Loading Portal Details...
+            <div className="om-loader-container">
+              <div className="om-loader-spinner-wrapper">
+                <div className="om-loader-spinner-ring"></div>
+                <div className="om-symbol-pulsing">ॐ</div>
+              </div>
+              <div className="om-loader-text">Loading Portal Details...</div>
+            </div>
           </div>
         )}
 
@@ -1050,7 +1130,7 @@ export default function Page() {
               <div className="om-loader-spinner-ring"></div>
               <div className="om-symbol-pulsing">ॐ</div>
             </div>
-            <div className="om-loader-text">Rashtriya Swayamsevak Sangh</div>
+            <div className="om-loader-text">{actionMessage || "Rashtriya Swayamsevak Sangh"}</div>
           </div>
         </div>
       )}

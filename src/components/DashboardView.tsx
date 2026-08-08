@@ -134,7 +134,7 @@ export default function DashboardView({
             <div className="metric-content">
               <span className="metric-label">Guru Dakshina</span>
               <span className="metric-value">{formatINR(totalGuruDakshinaCollected)}</span>
-              <span className="metric-subtext">Outstanding: {formatINR(12000)}</span>
+              <span className="metric-subtext">Total collection</span>
             </div>
             <div className="metric-icon yellow">
               <CreditCard size={20} />
@@ -238,18 +238,34 @@ export default function DashboardView({
 
         {/* Right panel widgets */}
         <div className="dashboard-panel-right">
-          {/* Attendance Status Widget */}
+          {/* Daily Shakha Attendance Widget */}
           {(() => {
-            const todayStr = new Date().toLocaleDateString("en-GB", {
+            const now = new Date();
+            const todayFormatted = now.toLocaleDateString("en-GB", {
               day: "2-digit",
               month: "short",
               year: "numeric"
             });
+            const todayFormattedAlt = now.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric"
+            });
+            const todayIso = now.toISOString().split("T")[0];
 
-            let displayDate = todayStr;
-            let activeLogs = attendanceLogs.filter(
-              (log) => log.logDate.trim() === todayStr.trim()
-            );
+            const isToday = (logDate: string) => {
+              if (!logDate) return false;
+              const trimmed = logDate.trim();
+              return (
+                trimmed === todayFormatted.trim() ||
+                trimmed === todayFormattedAlt.trim() ||
+                trimmed === todayIso.trim()
+              );
+            };
+
+            let displayDate = todayFormatted;
+            let activeLogs = attendanceLogs.filter((log) => isToday(log.logDate));
+            let isCurrentDateData = true;
 
             if (activeLogs.length === 0 && attendanceLogs.length > 0) {
               const mostRecentDate = attendanceLogs[0].logDate;
@@ -257,48 +273,141 @@ export default function DashboardView({
               activeLogs = attendanceLogs.filter(
                 (log) => log.logDate.trim() === mostRecentDate.trim()
               );
+              isCurrentDateData = false;
             }
 
-            const presentCount = activeLogs.reduce((sum, log) => sum + log.presentCount, 0);
-            const absentCount = activeLogs.reduce((sum, log) => sum + log.absentCount, 0);
-            const absentReasonCount = activeLogs.reduce((sum, log) => sum + log.absentReasonCount, 0);
+            const presentCount = activeLogs.reduce((sum, log) => sum + (log.presentCount || 0), 0);
+            const absentCount = activeLogs.reduce((sum, log) => sum + (log.absentCount || 0), 0);
+            const absentReasonCount = activeLogs.reduce((sum, log) => sum + (log.absentReasonCount || 0), 0);
 
             return (
               <div className="content-panel" style={{ height: "auto" }}>
-                <div className="panel-header">
+                <div className="panel-header" style={{ marginBottom: "16px" }}>
                   <h3>
-                    <Activity /> Attendance Status
+                    <Activity /> Daily Shakha Attendance
                   </h3>
-                  <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>
-                    {displayDate === todayStr ? "Today" : displayDate}
+                  <span style={{
+                    fontSize: "11.5px",
+                    fontWeight: 600,
+                    padding: "3px 8px",
+                    borderRadius: "12px",
+                    backgroundColor: isCurrentDateData ? "var(--color-success-light)" : "var(--background-secondary)",
+                    color: isCurrentDateData ? "var(--color-success)" : "var(--text-secondary)",
+                    border: `1px solid ${isCurrentDateData ? "var(--color-success-border)" : "var(--border-color)"}`
+                  }}>
+                    {isCurrentDateData ? `Today (${todayFormatted})` : displayDate}
                   </span>
                 </div>
 
-                <div className="status-indicator-list">
-                  <div className="status-indicator-row">
-                    <div className="status-indicator-info green">
-                      <UserCheck />
-                      <span>Present / Participants</span>
-                    </div>
-                    <span className="status-indicator-val">{presentCount}</span>
+                {activeLogs.length === 0 ? (
+                  <div style={{
+                    padding: "20px 16px",
+                    textAlign: "center",
+                    backgroundColor: "var(--background-secondary)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px dashed var(--border-color)"
+                  }}>
+                    <p style={{ margin: "0 0 12px 0", color: "var(--text-secondary)", fontSize: "13px" }}>
+                      No Shakha attendance logged for today ({todayFormatted}).
+                    </p>
+                    <button
+                      type="button"
+                      className="btn-primary saffron"
+                      onClick={() => setView("shakhas")}
+                      style={{ fontSize: "12.5px", padding: "8px 14px", display: "inline-flex", gap: "6px", alignItems: "center" }}
+                    >
+                      <Plus size={14} /> Mark Today's Attendance
+                    </button>
                   </div>
+                ) : (
+                  <div>
+                    {activeLogs.length > 1 && (
+                      <div className="status-indicator-list" style={{ marginBottom: "16px" }}>
+                        <div className="status-indicator-row">
+                          <div className="status-indicator-info green">
+                            <UserCheck />
+                            <span>Total Present</span>
+                          </div>
+                          <span className="status-indicator-val">{presentCount}</span>
+                        </div>
 
-                  <div className="status-indicator-row">
-                    <div className="status-indicator-info orange">
-                      <Clock />
-                      <span>Absent (Excused)</span>
-                    </div>
-                    <span className="status-indicator-val">{absentReasonCount}</span>
-                  </div>
+                        <div className="status-indicator-row">
+                          <div className="status-indicator-info orange">
+                            <Clock />
+                            <span>Total Excuse</span>
+                          </div>
+                          <span className="status-indicator-val">{absentReasonCount}</span>
+                        </div>
 
-                  <div className="status-indicator-row">
-                    <div className="status-indicator-info red">
-                      <Users />
-                      <span>Absent (Unexcused)</span>
+                        <div className="status-indicator-row">
+                          <div className="status-indicator-info red">
+                            <Users />
+                            <span>Total Absent</span>
+                          </div>
+                          <span className="status-indicator-val">{absentCount}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {activeLogs.map((log) => {
+                        const total = (log.presentCount || 0) + (log.absentCount || 0) + (log.absentReasonCount || 0);
+                        const pct = total > 0 ? Math.round(((log.presentCount || 0) / total) * 100) : 0;
+                        const shakhaName = log.shakhaName || shakhas.find((s) => s.id === log.shakhaId)?.name || "Shakha Unit";
+
+                        return (
+                          <div
+                            key={log.id}
+                            style={{
+                              padding: "14px",
+                              backgroundColor: "var(--background-secondary)",
+                              borderRadius: "var(--radius-md)",
+                              border: "1px solid var(--border-color)"
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                              <span style={{ fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>
+                                {shakhaName}
+                              </span>
+                              <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-saffron)" }}>
+                                {pct}% Present
+                              </span>
+                            </div>
+
+                            <div style={{ display: "flex", gap: "14px", fontSize: "12.5px" }}>
+                              <span style={{ color: "#16a34a", fontWeight: 600 }}>
+                                Present: {log.presentCount}
+                              </span>
+                              <span style={{ color: "#d97706", fontWeight: 600 }}>
+                                Excuse: {log.absentReasonCount}
+                              </span>
+                              <span style={{ color: "#dc2626", fontWeight: 600 }}>
+                                Absent: {log.absentCount}
+                              </span>
+                            </div>
+
+                            {log.remarks && (
+                              <p style={{ margin: "8px 0 0 0", fontSize: "11.5px", color: "var(--text-secondary)", fontStyle: "italic" }}>
+                                "{log.remarks}"
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <span className="status-indicator-val">{absentCount}</span>
+
+                    <div style={{ marginTop: "14px", textAlign: "right" }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setView("shakhas")}
+                        style={{ fontSize: "12px", padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      >
+                        <Plus size={13} /> Mark / Manage Attendance
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })()}

@@ -31,30 +31,23 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests and local/internal routing
+  // Only handle GET requests and exclude API requests
   if (event.request.method !== 'GET') return;
+  if (event.request.url.includes('/api/')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch update in background for cache fresh
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-          }
-        }).catch(() => {/* Offline */});
         return cachedResponse;
       }
 
       return fetch(event.request).then((networkResponse) => {
-        // Cache new assets dynamically
         if (networkResponse.status === 200 && event.request.url.startsWith(self.location.origin)) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
         }
         return networkResponse;
       }).catch(() => {
-        // Fallback for offline API/pages
         return caches.match('/');
       });
     })
